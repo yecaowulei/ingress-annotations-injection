@@ -1,0 +1,22 @@
+# issuer
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ printf "%s-selfsigned-issuer" (include "ingress-annotations-injection.fullname" .) }}
+spec:
+  selfSigned: {}
+---
+# certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "ingress-annotations-injection.fullname" . }}
+spec:
+  commonName: {{ printf "%s.%s.svc" (include "ingress-annotations-injection.fullname" .) .Release.Namespace }}
+  dnsNames:
+    - {{ printf "%s.%s.svc" (include "ingress-annotations-injection.fullname" .) .Release.Namespace }}
+    - {{ printf "%s.%s.svc.cluster.local" (include "ingress-annotations-injection.fullname" .) .Release.Namespace }}
+  issuerRef:
+    kind: Issuer
+    name: {{ printf "%s-selfsigned-issuer" (include "ingress-annotations-injection.fullname" .) }}
+  secretName: {{ include "ingress-annotations-injection.fullname" . }}

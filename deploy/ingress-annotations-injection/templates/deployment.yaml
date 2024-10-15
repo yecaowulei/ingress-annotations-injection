@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ingress-annotations-injection.fullname" . }}
+  labels:
+    {{- include "ingress-annotations-injection.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "ingress-annotations-injection.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ingress-annotations-injection.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: https-webhook
+              containerPort: {{ .Values.webhookAddr }}
+              protocol: TCP
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            - name: annotations
+              value: '{"k8s.apisix.apache.org/use-regex": "true","kubernetes.io/ingress.class": "apisix"}'
+          volumeMounts:
+          - name: certificate
+            mountPath: /app/ssl
+            readOnly: true              
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: https-webhook
+              scheme: HTTPS
+            initialDelaySeconds: 30  
+            failureThreshold: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3                
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: https-webhook      
+              scheme: HTTPS   
+            initialDelaySeconds: 30  
+            failureThreshold: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 3    
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+      - name: certificate
+        secret:
+          secretName: ingress-annotations-injection
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

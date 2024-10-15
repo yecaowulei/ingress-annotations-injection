@@ -1,0 +1,31 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ include "ingress-annotations-injection.serviceAccountName" . }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ printf "%s/%s" .Release.Namespace (include "ingress-annotations-injection.fullname" .) }}
+webhooks:
+- clientConfig:
+    service:
+      name: {{ include "ingress-annotations-injection.fullname" . }}
+      namespace: {{ .Release.Namespace }}
+      path: /mutating
+      port: 443
+  failurePolicy: Ignore
+  name: ingress-annotations-injection
+  sideEffects: None
+  admissionReviewVersions: ["v1beta1"]
+  # {{- with .Values.namespaceSelector }}
+  # namespaceSelector:
+  # {{- . | toYaml | nindent 4 }}
+  # {{- end }}  
+  rules:
+  - apiGroups:
+    - "networking.k8s.io"
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - ingresses
